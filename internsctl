@@ -1,0 +1,200 @@
+#!/bin/bash
+
+# Section A
+
+# Display manual page for internsctl
+man() {
+    echo "internsctl(1) - Custom Linux Command"
+    echo
+    echo "NAME"
+    echo "    internsctl - Custom Linux Command"
+    echo
+    echo "SYNOPSIS"
+    echo "    internsctl [OPTIONS] COMMAND [ARGS...]"
+    echo
+    echo "OPTIONS"
+    echo "    --help           Show this message and exit."
+    echo "    --version        Show version information."
+    echo
+    echo "COMMANDS"
+    echo "    cpu              Get CPU information."
+    echo "    memory           Get memory information."
+    echo "    user             User management commands."
+    echo "    file             File-related commands."
+}
+
+# Display help message
+help() {
+    echo "Usage: internsctl [OPTIONS] COMMAND [ARGS...]"
+    echo "  Custom Linux Command"
+    echo
+    echo "Options:"
+    echo "  --help            Show this message and exit."
+    echo "  --version         Show version information."
+    echo
+    echo "Commands:"
+    echo "  cpu getinfo       Get CPU information."
+    echo "  memory getinfo    Get memory information."
+    echo "  user create       Create a new user."
+    echo "  user list         List all regular users."
+    echo "  user list --sudo-only    List users with sudo permissions."
+    echo "  file getinfo      Get information about a file."
+}
+
+# Display version information
+version() {
+    echo "internsctl v0.1.0"
+}
+
+# Section B
+
+# Get CPU information
+cpu_getinfo() {
+    if ["$1" == 'getinfo']; then
+        lscpu
+}
+
+# Get memory information
+memory_getinfo() {
+    if ["$1" == 'getinfo']; then
+        free
+}
+
+# Create a new user
+user_create() {
+    if [ "$1" == "--help" ]; then
+        echo "Usage: user create <username>"
+        echo "  Create a new user."
+        exit 0
+    fi
+
+    if [ -z "$1" ]; then
+        echo "Error: Username not provided. Use '--help' for usage information."
+        exit 1
+    else
+        sudo useradd -m "$1"
+        echo "User '$1' created successfully."
+    fi
+}
+
+# List users
+user_list() {
+    if [ "$1" == "--help" ]; then
+        echo "Usage: user list [--sudo-only]"
+        echo "  List all regular users."
+        echo "Options:"
+        echo "  --sudo-only    List users with sudo permissions."
+        exit 0
+    fi
+
+    if [ "$1" == "--sudo-only" ]; then
+        grep -Po '^sudo.+:\K.*$' /etc/group | tr ',' '\n'
+    else
+        awk -F':' '$3 >= 1000 && $3 < 65534 {print $1}' /etc/passwd
+        # List both regular and sudo users
+        # cut -d: -f1 /etc/passwd
+    fi
+}
+
+# Part3 | Advanced Level
+
+# Get information about a file
+file_getinfo() {
+    if [ $# -gt 0 ]; then
+        file="${!#}"
+    else
+        echo "Usage: internsctl file getinfo [options] <file-name>"
+        exit 1
+    fi
+
+    if [ ! -e "$file" ]; then
+        echo "Error: File '$file' not found."
+    else
+        size=$(stat -c %s "$file")
+        permissions=$(stat -c %A "$file")
+        owner=$(stat -c %U "$file")
+        last_modified=$(stat -c %y "$file")
+        if [ $# -eq 1 ]; then
+            echo "File: $file"
+            echo "Access: $permissions"
+            echo "Size(B): $size"
+            echo "Owner: $owner"
+            echo "Modify: $last_modified"
+        elif [ "$#" -gt 1 ]; then
+            while [ "$#" -gt 1 ]; do
+                case $1 in
+                    --size | -s)
+                        echo "Size: $size bytes"
+                        ;;
+                    --permissions | -p)
+                        echo "Permissions: $permissions"
+                        ;;
+                    --owner | -o)
+                        echo "Owner: $owner"
+                        ;;
+                    --last-modified | -m)
+                        echo "Last Modified: $last_modified"
+                        ;;
+                    *)
+                        echo "Invalid Option. Use '--help' for usage information."
+                esac
+                shift
+            done
+        fi
+    fi
+}
+
+# Main script logic
+
+case $1 in
+    cpu)
+        shift
+        cpu_getinfo "$@"
+        ;;
+    memory)
+        shift
+        memory_getinfo "$@"
+        ;;
+    user)
+        shift
+        case $1 in
+            create)
+                shift
+                user_create "$@"
+                ;;
+            list)
+                shift
+                user_list "$@"
+                ;;
+            *)
+                echo "Usage: internsctl user create <username> | internsctl user list [--sudo-only]"
+                ;;
+        esac
+        ;;
+    file)
+        shift
+        shift
+        file_getinfo "$@"
+        ;;
+    --help)
+        help
+        ;;
+    --version)
+        version
+        ;;
+    *)
+        help
+        ;;
+esac
+
+
+
+# To run the script as command
+# Add Script to path
+# sudo mv internsctl /usr/local/bin/
+# Create a man page
+# sudo ln -s /usr/local/bin/internsctl /usr/share/man/man1/internsctl.1
+# Update man
+# sudo mandb
+# Add Executable permissions
+# sudo chmod +x /usr/local/bin/internsctl
